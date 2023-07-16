@@ -2,7 +2,7 @@
 
     <PropertyGroup>
         <TargetFramework>net6.0</TargetFramework>
-        <TargetFrameworkss>netstandard2.1;net6.0</TargetFrameworkss>
+        <TargetFrameworks>netstandard2.1;netcoreapp3.1;net6.0</TargetFrameworks>
         <Nullable>enable</Nullable>
 
         <IsPackable>false</IsPackable>
