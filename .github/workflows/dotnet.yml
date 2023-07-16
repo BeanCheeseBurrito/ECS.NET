@@ -13,7 +13,7 @@ jobs:
   build:
 
     runs-on: ${{ matrix.os }}
-    
+
     strategy:
         matrix:
             os: [ubuntu-latest, windows-latest, macos-latest]
@@ -30,7 +30,5 @@ jobs:
       run: dotnet restore
     - name: Build
       run: dotnet build --no-restore
-    - name: Test .NET 6.0
-      run: dotnet test --framework net6.0 --verbosity normal
-    - name: Test .NET Core 3.1
-      run: dotnet test --framework netcoreapp3.1 --verbosity normal
+    - name: Test
+      run: dotnet test --no-build --verbosity normal

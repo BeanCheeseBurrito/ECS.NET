@@ -1,5 +1,5 @@
 using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
@@ -16,7 +16,7 @@ namespace ECS.NET.Utilities
         ///     A dictionary that maps pointers to allocation sizes
         /// </summary>
         // TODO: Replace with unmanaged hashmap once it is implemented?
-        private static readonly Dictionary<IntPtr, ulong> AllocationSizes = new Dictionary<IntPtr, ulong>();
+        private static readonly ConcurrentDictionary<UIntPtr, ulong> AllocationSizes = new ConcurrentDictionary<UIntPtr, ulong>();
 
         /// <summary>
         ///     Represents the number of non-freed allocations. This is always 0 in release mode.
@@ -40,7 +40,9 @@ namespace ECS.NET.Utilities
         {
             AliveAllocations++;
             AliveBytes += (long)byteCount;
-            AllocationSizes.TryAdd((IntPtr)pointer, byteCount);
+
+            if (!AllocationSizes.TryAdd((UIntPtr)pointer, byteCount))
+                throw new ArgumentException($"Key already exists: {((IntPtr)pointer).ToString()}", nameof(pointer));
         }
 
         [Conditional("DEBUG")]
@@ -51,8 +53,10 @@ namespace ECS.NET.Utilities
                 return;
 
             AliveAllocations--;
-            AliveBytes -= (long)AllocationSizes[(IntPtr)pointer];
-            AllocationSizes.Remove((IntPtr)pointer);
+            AliveBytes -= (long)AllocationSizes[(UIntPtr)pointer];
+
+            if (!AllocationSizes.TryRemove((UIntPtr)pointer, out _))
+                throw new ArgumentException("Failed to remove key", nameof(pointer));
 
             // TODO: Should the user be able to free memory that was allocated outside of this class?
             if (AliveBytes < 0)
@@ -110,7 +114,7 @@ namespace ECS.NET.Utilities
 #if NET6_0_OR_GREATER
             void* pointer = NativeMemory.AllocZeroed((nuint)byteCount);
 #else
-            void* pointer = Alloc(byteCount);
+            void* pointer = (void*)Marshal.AllocHGlobal((IntPtr)byteCount);
             Unsafe.InitBlock(pointer, 0, (uint)byteCount);
 #endif
 
