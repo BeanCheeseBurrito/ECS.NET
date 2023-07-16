@@ -40,7 +40,7 @@ namespace ECS.NET.Utilities
         {
             AliveAllocations++;
             AliveBytes += (long)byteCount;
-            AllocationSizes.Add((IntPtr)pointer, byteCount);
+            AllocationSizes.TryAdd((IntPtr)pointer, byteCount);
         }
 
         [Conditional("DEBUG")]
