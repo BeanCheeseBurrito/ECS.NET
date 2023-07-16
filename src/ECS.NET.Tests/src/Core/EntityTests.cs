@@ -2,31 +2,32 @@ using ECS.NET.Core;
 using FluentAssertions;
 using Xunit;
 
-namespace ECS.NET.Tests.Core;
-
-public class EntityTests
+namespace ECS.NET.Tests.Core
 {
-    [Fact]
-    public void Create()
+    public class EntityTests
     {
-        using World world = World.Init();
+        [Fact]
+        public void Create()
+        {
+            using World world = World.Init();
 
-        Entity entity = world.Entity();
+            Entity entity = world.Entity();
 
-        entity.Id.Should().NotBe(default);
-    }
+            entity.Id.Should().NotBe(default);
+        }
 
-    [Fact]
-    public void CreateAndDelete()
-    {
-        using World world = World.Init();
+        [Fact]
+        public void CreateAndDelete()
+        {
+            using World world = World.Init();
 
-        Entity entity = world.Entity();
+            Entity entity = world.Entity();
 
-        entity.IsAlive.Should().BeTrue();
+            entity.IsAlive.Should().BeTrue();
 
-        entity.Delete();
+            entity.Delete();
 
-        entity.IsAlive.Should().BeFalse();
+            entity.IsAlive.Should().BeFalse();
+        }
     }
 }
