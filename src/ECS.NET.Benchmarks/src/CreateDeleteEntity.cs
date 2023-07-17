@@ -1,36 +1,37 @@
 using BenchmarkDotNet.Attributes;
 using ECS.NET.Core;
 
-namespace ECS.NET.Benchmarks;
-
-public class CreateDeleteEntityBenchmark
+namespace ECS.NET.Benchmarks
 {
-    private World _world;
-
-    [Params(100000)] public int Count;
-
-    [GlobalSetup]
-    public void Setup()
+    public class CreateDeleteEntityBenchmark
     {
-        _world = World.Init();
-    }
+        private World _world;
 
-    [GlobalCleanup]
-    public void Cleanup()
-    {
-        _world.Dispose();
-    }
+        [Params(100000)] public int Count;
 
-    [Benchmark]
-    public Entity CreateDeleteEntity()
-    {
-        Entity id = default;
-        for (int i = 0; i < Count; i++)
+        [GlobalSetup]
+        public void Setup()
         {
-            id = _world.Entity();
-            id.Delete();
+            _world = World.Init();
         }
 
-        return id;
+        [GlobalCleanup]
+        public void Cleanup()
+        {
+            _world.Dispose();
+        }
+
+        [Benchmark]
+        public Entity CreateDeleteEntity()
+        {
+            Entity id = default;
+            for (int i = 0; i < Count; i++)
+            {
+                id = _world.Entity();
+                id.Delete();
+            }
+
+            return id;
+        }
     }
 }
