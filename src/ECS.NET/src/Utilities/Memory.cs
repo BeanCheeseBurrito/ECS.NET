@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace ECS.NET.Utilities
 {
@@ -15,51 +16,54 @@ namespace ECS.NET.Utilities
         /// <summary>
         ///     A dictionary that maps pointers to allocation sizes
         /// </summary>
-        // TODO: Replace with unmanaged hashmap once it is implemented?
-        private static readonly ConcurrentDictionary<UIntPtr, ulong> AllocationSizes = new ConcurrentDictionary<UIntPtr, ulong>();
+        private static readonly ConcurrentDictionary<IntPtr, long> AllocationSizes =
+            new ConcurrentDictionary<IntPtr, long>();
 
         /// <summary>
         ///     Represents the number of non-freed allocations. This is always 0 in release mode.
         /// </summary>
-        public static int AliveAllocations { get; private set; } // TODO: Change to unsigned integer?
+        private static int _aliveAllocations;
 
         /// <summary>
         ///     Represents the number of non-freed bytes of memory. This is always 0 in release mode.
         /// </summary>
-        public static long AliveBytes { get; private set; } // TODO: Change to unsigned integer?
+        private static long _aliveBytes;
 
         public new static string ToString()
         {
             return
-                $"Non-freed Allocations: {AliveAllocations.ToString(CultureInfo.CurrentCulture)}\nNon-freed  bytes: {AliveBytes.ToString(CultureInfo.CurrentCulture)}";
+                $"Non-freed Allocations: {_aliveAllocations.ToString(CultureInfo.CurrentCulture)}\nNon-freed  bytes: {_aliveBytes.ToString(CultureInfo.CurrentCulture)}";
         }
 
         [Conditional("DEBUG")]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void IncrementCounter(void* pointer, ulong byteCount)
+        private static void IncrementCounter(IntPtr pointer, long byteCount)
         {
-            AliveAllocations++;
-            AliveBytes += (long)byteCount;
+            Interlocked.Increment(ref _aliveAllocations);
+            Interlocked.Add(ref _aliveBytes, byteCount);
 
-            if (!AllocationSizes.TryAdd((UIntPtr)pointer, byteCount))
-                throw new ArgumentException($"Key already exists: {((IntPtr)pointer).ToString()}", nameof(pointer));
+            if (!AllocationSizes.TryAdd(pointer, byteCount))
+                throw new ArgumentException($"Key already exists: {pointer}", nameof(pointer));
         }
 
         [Conditional("DEBUG")]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void DecrementCounter(void* pointer)
+        private static void DecrementCounter(IntPtr pointer)
         {
-            if (pointer == null)
+            if (pointer == IntPtr.Zero)
                 return;
 
-            AliveAllocations--;
-            AliveBytes -= (long)AllocationSizes[(UIntPtr)pointer];
+            if (!AllocationSizes.TryGetValue(pointer, out long allocationSize))
+                throw new ArgumentException("Key not found", nameof(pointer));
 
-            if (!AllocationSizes.TryRemove((UIntPtr)pointer, out _))
+            Interlocked.Decrement(ref _aliveAllocations);
+            Interlocked.Add(ref _aliveBytes, -allocationSize);
+
+            if (!AllocationSizes.TryRemove(pointer, out _))
                 throw new ArgumentException("Failed to remove key", nameof(pointer));
 
             // TODO: Should the user be able to free memory that was allocated outside of this class?
-            if (AliveBytes < 0)
+            if (_aliveBytes < 0)
                 throw new InvalidOperationException("Freed more memory than was allocated.");
         }
 
@@ -89,7 +93,7 @@ namespace ECS.NET.Utilities
 #else
             Marshal.FreeHGlobal((IntPtr)data);
 #endif
-            DecrementCounter(data);
+            DecrementCounter((IntPtr)data);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -104,7 +108,7 @@ namespace ECS.NET.Utilities
             if (pointer == null)
                 throw new InsufficientMemoryException();
 
-            IncrementCounter(pointer, byteCount);
+            IncrementCounter((IntPtr)pointer, (long)byteCount);
             return pointer;
         }
 
@@ -121,7 +125,7 @@ namespace ECS.NET.Utilities
             if (pointer == null)
                 throw new InsufficientMemoryException();
 
-            IncrementCounter(pointer, byteCount);
+            IncrementCounter((IntPtr)pointer, (long)byteCount);
             return pointer;
         }
 
@@ -138,8 +142,8 @@ namespace ECS.NET.Utilities
                 throw new InsufficientMemoryException();
 
 #if DEBUG
-            DecrementCounter(data);
-            IncrementCounter(pointer, byteCount);
+            DecrementCounter((IntPtr)data);
+            IncrementCounter((IntPtr)pointer, (long)byteCount);
 #endif
 
             return pointer;
